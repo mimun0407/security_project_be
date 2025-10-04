@@ -1,0 +1,45 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.5.5'
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'bao.vidu'
+version = '0.0.1-SNAPSHOT'
+description = 'demo'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Spring Boot
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation "org.postgresql:postgresql:42.7.7"
+    implementation("org.springdoc:springdoc-openapi-ui:1.7.0")
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+    // Lombok
+    compileOnly "org.projectlombok:lombok:1.18.38"
+    annotationProcessor "org.projectlombok:lombok:1.18.38"
+    implementation 'commons-codec:commons-codec:1.16.0'
+    testCompileOnly "org.projectlombok:lombok:1.18.38"
+    testAnnotationProcessor "org.projectlombok:lombok:1.18.38"
+
+    // Spring Data JPA
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+
+    // Test
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
