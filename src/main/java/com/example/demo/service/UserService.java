@@ -30,21 +30,15 @@ public class UserService {
     private static final String IMAGE_PATH = "C:/image-for-porject/";
 
     public void save(CreateRequest createRequest, MultipartFile image) {
-        // Check trùng username
         if (userRepository.existsById(createRequest.getUsername())) {
             throw new RuntimeException("Bị trùng rồi");
         }
-
         UserEntity userEntity = new UserEntity();
         userEntity.setName(createRequest.getName());
         userEntity.setUsername(createRequest.getUsername());
         userEntity.setEmail(createRequest.getEmail());
-
-        // Mã hoá mật khẩu
         BCryptPasswordEncoder encoder = new BCryptPasswordEncoder(10);
         userEntity.setPassword(encoder.encode(createRequest.getPassword()));
-
-        // Lưu roles từ String -> RoleEntity
         Set<RoleEntity> roles = new HashSet<>();
         for (String roleName : createRequest.getRoles()) {
             RoleEntity role = roleRepository.findByName(roleName)
@@ -52,8 +46,6 @@ public class UserService {
             roles.add(role);
         }
         userEntity.setRoles(roles);
-
-        // Lưu ảnh
         if (image != null && !image.isEmpty()) {
             String fileName = System.currentTimeMillis() + "_" + image.getOriginalFilename();
 
@@ -61,15 +53,12 @@ public class UserService {
             if (!dir.exists()) {
                 dir.mkdirs();
             }
-
             File dest = new File(dir, fileName);
             try {
                 image.transferTo(dest);
-
-                // Tính SHA-256 sau khi lưu
                 String hash = HashUtil.sha256Hex(dest);
-                userEntity.setImageUrl("/public/" + fileName); // lưu đường dẫn public
-                userEntity.setImageHash(hash); // lưu hash vào DB
+                userEntity.setImageUrl("/public/" + fileName);
+                userEntity.setImageHash(hash);
             } catch (IOException e) {
                 throw new RuntimeException("Lỗi khi lưu ảnh: " + e.getMessage());
             } catch (Exception e) {
@@ -105,7 +94,6 @@ public class UserService {
         UserEntity userEntity = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy username này"));
 
-        // Kiểm tra toàn vẹn ảnh (nếu có)
         if (userEntity.getImageUrl() != null && userEntity.getImageHash() != null) {
             File file = new File(IMAGE_PATH + userEntity.getImageUrl().replace("/public/", ""));
             if (file.exists()) {
@@ -145,14 +133,11 @@ public class UserService {
         existingUser.setEmail(request.getEmail());
         existingUser.setIsActive(request.getIsActive());
 
-        // Update password nếu có
         if (request.getPassword() != null && !request.getPassword().isBlank()) {
             BCryptPasswordEncoder encoder = new BCryptPasswordEncoder(10);
             existingUser.setPassword(encoder.encode(request.getPassword()));
         }
 
-
-        // Update ảnh nếu có upload mới
         if (newImage != null && !newImage.isEmpty()) {
             String fileName = System.currentTimeMillis() + "_" + newImage.getOriginalFilename();
             File dir = new File(IMAGE_PATH);
@@ -171,7 +156,6 @@ public class UserService {
                 throw new RuntimeException("Không thể tạo hash ảnh mới: " + e.getMessage());
             }
         } else {
-            // Nếu không upload ảnh mới, kiểm tra lại ảnh cũ còn toàn vẹn không
             if (existingUser.getImageUrl() != null && existingUser.getImageHash() != null) {
                 File file = new File(IMAGE_PATH + existingUser.getImageUrl().replace("/public/", ""));
                 if (file.exists()) {

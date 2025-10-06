@@ -56,7 +56,7 @@ public class AuthService {
                 .issuer("DANG QUAN BAO")
                 .claim("email", user.getEmail())
                 .claim("roles", roles)
-                .expirationTime(new Date(System.currentTimeMillis() + 36000000))
+                .expirationTime(new Date(System.currentTimeMillis() + 600000))
                 .issueTime(new Date())
                 .jwtID(UUID.randomUUID().toString())
                 .build();
