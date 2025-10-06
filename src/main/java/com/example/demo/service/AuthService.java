@@ -1,6 +1,5 @@
 package com.example.demo.service;
 
-import com.example.demo.common.GlobalExceptionHandler;
 import com.example.demo.common.TokenExpiredException;
 import com.example.demo.entity.*;
 import com.example.demo.model.LoginResponse;
