@@ -45,4 +45,8 @@ public class PostController {
     public ResponseEntity<PostResponse> getPostById(@PathVariable String id) {
         return ResponseEntity.ok(postService.findById(id));
     }
+    @GetMapping("/my")
+    public Page<PostResponse> myPosts(Pageable pageable) {
+        return postService.userPosts(pageable);
+    }
 }

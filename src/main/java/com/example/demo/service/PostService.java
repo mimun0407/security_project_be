@@ -10,6 +10,9 @@ import com.example.demo.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -25,6 +28,24 @@ public class PostService {
 
     // Đường dẫn lưu ảnh bài viết (Khác với ảnh user để dễ quản lý)
     private static final String POST_IMAGE_PATH = "C:/image-for-porject/";
+
+    public Page<PostResponse> userPosts(Pageable pageable) {
+
+        Authentication authentication =
+                SecurityContextHolder.getContext().getAuthentication();
+
+        Jwt jwt = (Jwt) authentication.getPrincipal();
+
+        String username = jwt.getSubject();
+
+        UserEntity user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User không tồn tại"));
+
+        Page<PostEntity> posts =
+                postRepository.findByUserId(user, pageable);
+
+        return posts.map(this::mapToResponse);
+    }
 
     public void createPost(CreatePostRequest request, MultipartFile image, MultipartFile musicFile) {
         UserEntity user = userRepository.findById(request.getUserId())
