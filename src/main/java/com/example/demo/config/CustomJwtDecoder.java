@@ -1,7 +1,6 @@
 package com.example.demo.config;
 
 import com.example.demo.service.AuthService;
-import com.nimbusds.jwt.SignedJWT;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;

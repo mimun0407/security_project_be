@@ -3,14 +3,12 @@ package com.example.demo.service;
 import com.example.demo.common.HashUtil;
 import com.example.demo.entity.RoleEntity;
 import com.example.demo.entity.UserEntity;
-import com.example.demo.model.CreateRequest;
-import com.example.demo.model.UserDetailResponse;
-import com.example.demo.model.UserPageResponse;
-import com.example.demo.model.UserUpdateRequest;
+import com.example.demo.model.*;
 import com.example.demo.repository.RoleRepository;
 import com.example.demo.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -19,6 +17,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -174,6 +173,24 @@ public class UserService {
         }
 
         userRepository.save(existingUser);
+    }
+    public List<UserSuggestResponse> getSuggestions(String currentUsername) {
+        UserEntity currentUser = userRepository.findByUsername(currentUsername)
+                .orElseThrow(() -> new RuntimeException("User không tồn tại"));
+
+        List<UserEntity> suggestedUsers = userRepository.findSuggestedUsers(
+                currentUser.getId(),
+                PageRequest.of(0, 7)
+        );
+
+        return suggestedUsers.stream().map(user -> {
+            UserSuggestResponse response = new UserSuggestResponse();
+            response.setUserId(user.getId());
+            response.setName(user.getName());
+            response.setImageUrl(user.getImageUrl());
+            return response;
+        }).collect(Collectors.toList());
+
     }
 
     public void delete(String id) {
