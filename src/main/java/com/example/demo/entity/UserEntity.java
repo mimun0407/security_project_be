@@ -1,10 +1,9 @@
 package com.example.demo.entity;
 
 import com.example.demo.common.BaseEntity;
+import com.example.demo.model.Provider;
 import jakarta.persistence.*;
 import lombok.*;
-
-import javax.management.relation.Role;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -16,6 +15,9 @@ import java.util.Set;
 public class UserEntity extends BaseEntity {
     private String name;
     private String password;
+    @Enumerated(EnumType.STRING)
+    private Provider provider;
+    private String providerUserId;
     private String username;
     private String email;
     private String imageUrl;

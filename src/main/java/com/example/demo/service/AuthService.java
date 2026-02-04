@@ -3,6 +3,7 @@ package com.example.demo.service;
 import com.example.demo.common.TokenExpiredException;
 import com.example.demo.entity.*;
 import com.example.demo.model.LoginResponse;
+import com.example.demo.model.Provider;
 import com.example.demo.model.RefreshTokenRequest;
 import com.example.demo.repository.InvalidatedTokenRepository;
 import com.example.demo.repository.LogCRUDRepository;
@@ -17,7 +18,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.text.ParseException;
 import java.util.Date;
@@ -43,7 +46,7 @@ public class AuthService {
         return logCRUDRepository.findAll(pageable);
     }
 
-    private String createJwt(UserEntity user) throws JOSEException {
+    public String createJwt(UserEntity user) throws JOSEException {
         JWSHeader jweHeader = new JWSHeader(JWSAlgorithm.HS256);
 
         List<String> roles = user.getRoles()
@@ -51,9 +54,9 @@ public class AuthService {
                 .map(RoleEntity::getName)   // lấy tên role
                 .toList();
         JWTClaimsSet jwtClaimsSet = new JWTClaimsSet.Builder()
-                .subject(user.getUsername())
+                .subject(user.getEmail())
                 .issuer("DANG QUAN BAO")
-                .claim("email", user.getEmail())
+                .claim("username", user.getUsername())
                 .claim("roles", roles)
                 .expirationTime(new Date(System.currentTimeMillis() + 600000))
                 .issueTime(new Date())
@@ -67,7 +70,7 @@ public class AuthService {
         return jwsObject.serialize();
     }
 
-    private LoginResponse createRefreshToken(UserEntity user) throws JOSEException, ParseException {
+    public LoginResponse createRefreshToken(UserEntity user) throws JOSEException, ParseException {
         String refreshToken = UUID.randomUUID().toString();
         Date now = new Date();
         Date expiresAt = new Date(now.getTime() + 24L * 60 * 60 * 1000);
@@ -75,10 +78,10 @@ public class AuthService {
         refreshTokenRepository.save(refreshTokenEntity);
         String token = createJwt(user);
         SignedJWT signedJWT = SignedJWT.parse(token);
-        UserEntity userEntity = userRepository.findByUsername(signedJWT.getJWTClaimsSet().getSubject()).orElseThrow(()->new RuntimeException("cannot find user"));
+        UserEntity userEntity = userRepository.findByEmail(signedJWT.getJWTClaimsSet().getSubject()).orElseThrow(()->new RuntimeException("cannot find user"));
         Set<RoleEntity> roles = userEntity.getRoles();
         Set<String> roleSet = roles.stream().map(RoleEntity::getName).collect(Collectors.toSet());
-        return new LoginResponse( token,refreshToken,roleSet) ;
+        return new LoginResponse( token,refreshToken,roleSet,userEntity.getEmail()) ;
     }
 
     public LoginResponse login(String username, String password) throws JOSEException, ParseException {
@@ -138,5 +141,41 @@ public class AuthService {
             throw new RuntimeException("refresh token expired");
         }
         return refreshTokenEntity;
+    }
+    @Transactional
+    public String processOAuthPostLogin(OAuth2User oAuth2User) {
+        try {
+            String email = oAuth2User.getAttribute("email");
+            String name = oAuth2User.getAttribute("name");
+            String picture = oAuth2User.getAttribute("picture");
+
+            UserEntity user = userRepository.findByEmail(email)
+                    .orElseGet(() -> {
+                        UserEntity newUser = new UserEntity();
+                        newUser.setEmail(email);
+                        newUser.setName(name);
+                        newUser.setImageUrl(picture);
+                        newUser.setProvider(Provider.GOOGLE);
+                        newUser.setUsername(email);
+                        return userRepository.save(newUser);
+                    });
+
+            LoginResponse loginResponse = createRefreshToken(user);
+
+            String token = loginResponse.getToken();
+            String refreshToken = loginResponse.getRefreshToken();
+            String roles = user.getRoles().stream()
+                    .map(RoleEntity::getName)
+                    .collect(Collectors.joining(","));
+
+            return String.format(
+                    "http://localhost:3000/oauth2/callback?token=%s&refreshToken=%s&roles=%s&email=%s",
+                    token, refreshToken, roles, email
+            );
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "http://localhost:3000/login?error=true";
+        }
     }
 }

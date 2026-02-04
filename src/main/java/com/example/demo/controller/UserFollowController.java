@@ -20,8 +20,8 @@ public class UserFollowController {
 
     private String getCurrentUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String username = authentication.getName();
-        UserEntity currentUser = userRepository.findByUsername(username)
+        String email = authentication.getName();
+        UserEntity currentUser = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng hiện tại (Token không hợp lệ hoặc User bị xóa)"));
         return currentUser.getId();
     }

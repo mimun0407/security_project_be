@@ -20,8 +20,6 @@ public class PostController {
 
     private final PostService postService;
 
-    // 1. API Tạo bài viết (Có upload ảnh)
-    // Dùng @ModelAttribute vì frontend gửi dạng multipart/form-data
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<String> createPost(
             @ModelAttribute CreatePostRequest request,

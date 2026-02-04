@@ -36,9 +36,9 @@ public class PostService {
 
         Jwt jwt = (Jwt) authentication.getPrincipal();
 
-        String username = jwt.getSubject();
+        String email = jwt.getSubject();
 
-        UserEntity user = userRepository.findByUsername(username)
+        UserEntity user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User không tồn tại"));
 
         Page<PostEntity> posts =
@@ -86,7 +86,6 @@ public class PostService {
                 File destMusic = new File(musicDir, musicFileName);
                 musicFile.transferTo(destMusic); // Lưu file vào ổ cứng
 
-                // Lưu đường dẫn vào DB để frontend play
                 post.setMusicLink("/public/" + musicFileName);
 
             } catch (IOException e) {
@@ -108,26 +107,21 @@ public class PostService {
         PostEntity post = postRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy bài viết"));
 
-        // Kiểm tra Hash ảnh (Chống giả mạo file)
         validateImageIntegrity(post);
 
         return mapToResponse(post);
     }
 
-    // --- Hàm phụ trợ ---
-
-    // Hàm map dữ liệu: Chỗ này trả lời câu hỏi "lấy từ userID rồi mà" của bạn
     private PostResponse mapToResponse(PostEntity post) {
         PostResponse response = new PostResponse();
-        response.setId(post.getId()); // Giả sử BaseEntity có getId()
+        response.setId(post.getId());
         response.setContent(post.getContent());
         response.setMusicLink(post.getMusicLink());
         response.setImageUrl(post.getImageUrl());
         response.setLikes(post.getLikes());
 
-        // LẤY THÔNG TIN TÁC GIẢ TỪ RELATIONSHIP
         if (post.getUserId() != null) {
-            UserEntity author = post.getUserId(); // getUserId() trả về object UserEntity
+            UserEntity author = post.getUserId();
             response.setAuthorId(author.getId());
             response.setAuthorName(author.getName());
             response.setAuthorAvatar(author.getImageUrl());

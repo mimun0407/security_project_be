@@ -89,8 +89,8 @@ public class UserService {
         });
     }
 
-    public UserDetailResponse findByUsername(String username) {
-        UserEntity userEntity = userRepository.findByUsername(username)
+    public UserDetailResponse findByEmail(String email) {
+        UserEntity userEntity = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy username này"));
 
         if (userEntity.getImageUrl() != null && userEntity.getImageHash() != null) {
@@ -123,9 +123,9 @@ public class UserService {
         );
     }
 
-    public void update(String username, UserUpdateRequest request, MultipartFile newImage) {
-        UserEntity existingUser = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy user với username: " + username));
+    public void update(String email, UserUpdateRequest request, MultipartFile newImage) {
+        UserEntity existingUser = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy user"));
 
         existingUser.setName(request.getName());
         existingUser.setUsername(request.getUsername());
@@ -174,8 +174,8 @@ public class UserService {
 
         userRepository.save(existingUser);
     }
-    public List<UserSuggestResponse> getSuggestions(String currentUsername) {
-        UserEntity currentUser = userRepository.findByUsername(currentUsername)
+    public List<UserSuggestResponse> getSuggestions(String email) {
+        UserEntity currentUser = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User không tồn tại"));
 
         List<UserEntity> suggestedUsers = userRepository.findSuggestedUsers(

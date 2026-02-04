@@ -1,5 +1,9 @@
 package com.example.demo.config;
 
+
+import com.example.demo.service.AuthService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
@@ -7,6 +11,7 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
@@ -20,7 +25,10 @@ import java.util.List;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
+@RequiredArgsConstructor
+@Slf4j
 public class SecurityConfig {
+    private final AuthService authService;
     private final String[] patterns = new String[]{
             "/api/v1/auth/**",
             "/api/v1/user/**",
@@ -29,8 +37,7 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain configure(HttpSecurity http,
-                                         JwtDecoder jwtDecoder,
-                                         JwtAuthenticationConverter jwtAuthenticationConverter) throws Exception {
+                                         JwtDecoder jwtDecoder) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(Customizer.withDefaults())
@@ -41,12 +48,24 @@ public class SecurityConfig {
                 .oauth2ResourceServer(oauth2 ->
                         oauth2.jwt(jwt -> {
                             jwt.decoder(jwtDecoder);
-                            jwt.jwtAuthenticationConverter(jwtAuthenticationConverter);
+                            jwt.jwtAuthenticationConverter(jwtAuthenticationConverter());
+                        })
+                )
+                .oauth2Login(oauth2 -> oauth2
+                        .successHandler((request, response, authentication) -> {
+                            // 1. Lấy thông tin user từ Google
+                            DefaultOAuth2User oAuth2User = (DefaultOAuth2User) authentication.getPrincipal();
+
+                            // 2. Gọi AuthService để xử lý logic nghiệp vụ
+                            String targetUrl = authService.processOAuthPostLogin(oAuth2User);
+
+                            // 3. Điều hướng về Frontend
+                            response.sendRedirect(targetUrl);
                         })
                 );
+
         return http.build();
     }
-
     @Bean
     public JwtAuthenticationConverter jwtAuthenticationConverter() {
         JwtGrantedAuthoritiesConverter grantedAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();

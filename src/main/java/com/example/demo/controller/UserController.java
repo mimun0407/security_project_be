@@ -44,26 +44,26 @@ public class UserController {
         return userService.findAll(pageable);
     }
 
-    @GetMapping("{username}")
-    @PreAuthorize("hasRole('ADMIN') or #username == authentication.name")
-    public UserDetailResponse findById(@PathVariable String username) {
-        return userService.findByUsername(username);
+    @GetMapping("{email}")
+    @PreAuthorize("hasRole('ADMIN') or #email == authentication.name")
+    public UserDetailResponse findByEmail(@PathVariable String email) {
+        return userService.findByEmail(email);
     }
 
-    @PutMapping("{username}")
-    @PreAuthorize("hasRole('ADMIN') or #username == authentication.name")
-    public void update(@PathVariable String username,
+    @PutMapping("{email}")
+    @PreAuthorize("hasRole('ADMIN') or #email == authentication.name")
+    public void update(@PathVariable String email,
                        @RequestPart("user") UserUpdateRequest request,
                        @RequestPart(value = "image", required = false) MultipartFile image) {
-        userService.update(username, request, image);
+        userService.update(email, request, image);
     }
     @GetMapping("/suggestions")
     public ResponseEntity<List<UserSuggestResponse>> getSuggestions() {
         // Lấy username từ SecurityContext (đã giải mã từ JWT)
-        String currentUsername = org.springframework.security.core.context.SecurityContextHolder
+        String currentUserEmail = org.springframework.security.core.context.SecurityContextHolder
                 .getContext().getAuthentication().getName();
 
-        List<UserSuggestResponse> suggestions = userService.getSuggestions(currentUsername);
+        List<UserSuggestResponse> suggestions = userService.getSuggestions(currentUserEmail);
         return ResponseEntity.ok(suggestions);
     }
 }
