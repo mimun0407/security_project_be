@@ -1,15 +1,17 @@
 package com.example.demo.service;
 
+import com.example.demo.common.AppException;
 import com.example.demo.common.HashUtil;
 import com.example.demo.entity.PostEntity;
 import com.example.demo.entity.UserEntity;
-import com.example.demo.model.CreatePostRequest;
+import com.example.demo.model.user.CreatePostRequest;
 import com.example.demo.model.PostResponse;
 import com.example.demo.repository.PostRepository;
 import com.example.demo.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -26,7 +28,6 @@ public class PostService {
     private final PostRepository postRepository;
     private final UserRepository userRepository;
 
-    // Đường dẫn lưu ảnh bài viết (Khác với ảnh user để dễ quản lý)
     private static final String POST_IMAGE_PATH = "C:/image-for-porject/";
 
     public Page<PostResponse> userPosts(Pageable pageable) {
@@ -39,7 +40,7 @@ public class PostService {
         String email = jwt.getSubject();
 
         UserEntity user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User không tồn tại"));
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "USER_NF_001", "User not found"));
 
         Page<PostEntity> posts =
                 postRepository.findByUserId(user, pageable);
@@ -49,14 +50,14 @@ public class PostService {
 
     public void createPost(CreatePostRequest request, MultipartFile image, MultipartFile musicFile) {
         UserEntity user = userRepository.findById(request.getUserId())
-                .orElseThrow(() -> new RuntimeException("User không tồn tại"));
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "USER_NF_001", "User not found"));
 
         PostEntity post = new PostEntity();
         post.setContent(request.getContent());
         post.setUserId(user);
         post.setLikes(0);
 
-        // --- XỬ LÝ LƯU ẢNH (Giữ nguyên) ---
+        // --- XỬ LÝ LƯU ẢNH ---
         if (image != null && !image.isEmpty()) {
             try {
                 String imgFileName = System.currentTimeMillis() + "_img_" + image.getOriginalFilename();
@@ -70,11 +71,11 @@ public class PostService {
                 post.setImageUrl("/public/" + imgFileName);
                 post.setImageHash(hash);
             } catch (Exception e) {
-                throw new RuntimeException("Lỗi lưu ảnh: " + e.getMessage());
+                throw new AppException(HttpStatus.INTERNAL_SERVER_ERROR, "FILE_UPLOAD_ERR_001", "Error saving image: " + e.getMessage());
             }
         }
 
-        // --- XỬ LÝ LƯU NHẠC (Mới thêm) ---
+        // --- XỬ LÝ LƯU NHẠC ---
         if (musicFile != null && !musicFile.isEmpty()) {
             try {
                 // Tạo tên file nhạc duy nhất
@@ -89,10 +90,9 @@ public class PostService {
                 post.setMusicLink("/public/" + musicFileName);
 
             } catch (IOException e) {
-                throw new RuntimeException("Lỗi lưu file nhạc: " + e.getMessage());
+                throw new AppException(HttpStatus.INTERNAL_SERVER_ERROR, "FILE_UPLOAD_ERR_002", "Error saving music file: " + e.getMessage());
             }
         }
-
         postRepository.save(post);
     }
 
@@ -105,7 +105,7 @@ public class PostService {
 
     public PostResponse findById(String id) {
         PostEntity post = postRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy bài viết"));
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "POST_NF_001", "Post not found"));
 
         validateImageIntegrity(post);
 
@@ -130,7 +130,7 @@ public class PostService {
         return response;
     }
 
-    // Hàm kiểm tra hash ảnh (Tách ra cho gọn)
+    // Hàm kiểm tra hash ảnh
     private void validateImageIntegrity(PostEntity post) {
         if (post.getImageUrl() != null && post.getImageHash() != null) {
             String fileName = post.getImageUrl().replace("/public/", "");
@@ -140,10 +140,11 @@ public class PostService {
                 try {
                     String currentHash = HashUtil.sha256Hex(file);
                     if (!currentHash.equals(post.getImageHash())) {
-                        throw new RuntimeException("Ảnh bài viết bị lỗi hoặc đã bị thay đổi (Hash mismatch)");
+                        throw new AppException(HttpStatus.INTERNAL_SERVER_ERROR, "FILE_INTEGRITY_ERR", "Image file integrity check failed (Hash mismatch)");
                     }
                 } catch (Exception e) {
-                    throw new RuntimeException("Lỗi kiểm tra hash: " + e.getMessage());
+                    if (e instanceof AppException) throw (AppException) e;
+                    throw new AppException(HttpStatus.INTERNAL_SERVER_ERROR, "FILE_HASH_ERR", "Error calculating file hash: " + e.getMessage());
                 }
             }
         }

@@ -32,7 +32,8 @@ public class SecurityConfig {
     private final String[] patterns = new String[]{
             "/api/v1/auth/**",
             "/api/v1/user/**",
-            "/public/**"
+            "/public/**",
+            "/favicon.ico"
     };
 
     @Bean

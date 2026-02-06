@@ -1,10 +1,12 @@
 package com.example.demo.service;
 
+import com.example.demo.common.AppException;
 import com.example.demo.entity.RoleEntity;
 import com.example.demo.repository.RoleRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 
@@ -19,6 +21,6 @@ public class RoleService {
         return roleRepository.findAll(pageable);
     }
     public RoleEntity findById(String id) {
-        return roleRepository.findById(id).orElseThrow(()->new RuntimeException("ko tim thay id nay"));
+        return roleRepository.findById(id).orElseThrow(()->new AppException(HttpStatus.NOT_FOUND, "ERROR_ROLE_001", "Cannot find role"));
     }
 }

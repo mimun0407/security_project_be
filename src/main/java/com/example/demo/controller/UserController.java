@@ -1,17 +1,14 @@
 package com.example.demo.controller;
 
-import com.example.demo.entity.UserEntity;
 import com.example.demo.model.*;
+import com.example.demo.model.user.CreateRequest;
 import com.example.demo.service.UserService;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springdoc.api.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.MediaType;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -24,12 +21,15 @@ import java.util.List;
 public class UserController {
     private final UserService userService;
 
-    @PreAuthorize("hasRole('ADMIN')")
-    @PostMapping
-    public void save(
-            @RequestPart("user") CreateRequest user,
-            @RequestPart(value = "image", required = false) MultipartFile image) {
-        userService.save(user, image);
+    @PostMapping("/register")
+    public ResponseEntity<ApiResponse<Void>> register(
+            @RequestBody CreateRequest user
+    ) {
+        userService.register(user);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(null, "Register successfully")
+        );
     }
 
     @PreAuthorize("hasRole('ADMIN')")
@@ -59,11 +59,55 @@ public class UserController {
     }
     @GetMapping("/suggestions")
     public ResponseEntity<List<UserSuggestResponse>> getSuggestions() {
-        // Lấy username từ SecurityContext (đã giải mã từ JWT)
         String currentUserEmail = org.springframework.security.core.context.SecurityContextHolder
                 .getContext().getAuthentication().getName();
 
         List<UserSuggestResponse> suggestions = userService.getSuggestions(currentUserEmail);
         return ResponseEntity.ok(suggestions);
+    }
+    @PostMapping("/send-otp")
+    public ResponseEntity<ApiResponse<Void>> sendOtp(@RequestParam String email) {
+        userService.sendSMS(email);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(null, "OTP sent successfully")
+        );
+    }
+
+    @PostMapping("/verifi")
+    public ResponseEntity<ApiResponse<Void>> verifyOtp(
+            @RequestParam String email,
+            @RequestParam String otp
+    ) {
+        userService.verifyOTP(email, otp);
+        return ResponseEntity.ok(
+                ApiResponse.success(null, "OTP verified successfully")
+        );
+    }
+    @PostMapping("/send-otp-fp")
+    public ApiResponse<Void> forgotPassword(
+            @RequestParam String email
+    ){
+        userService.sendSMSForgotPassword(email);
+        return ApiResponse.<Void>builder()
+                .statusCode(HttpStatus.OK.value())
+                .message("send OTP successfully")
+                .build();
+    }
+    @PostMapping("/confirm-otp-fp")
+    public ApiResponse<Void> sendOtpFp(@RequestParam String email,@RequestParam String otp) {
+        userService.verifyOTPForgotPassword(email, otp);
+        return ApiResponse.<Void>builder()
+                .statusCode(HttpStatus.OK.value())
+                .message("OTP verified successfully")
+                .build();
+    }
+    @PostMapping("/new-password-fp")
+    public ApiResponse<Void> newPasswordF(@RequestBody ResetPasswordRequest request) {
+        userService.resetPassword(request);
+        return ApiResponse.<Void>builder()
+                .statusCode(HttpStatus.OK.value())
+                .message("Password reset successfully")
+                .build();
     }
 }

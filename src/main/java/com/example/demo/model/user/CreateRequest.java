@@ -1,11 +1,9 @@
-package com.example.demo.model;
+package com.example.demo.model.user;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-
-import java.util.Set;
 
 @Getter
 @Setter
@@ -15,6 +13,6 @@ public class CreateRequest {
     private String name;
     private String username;
     private String password;
+    private String rePassword;
     private String email;
-    private Set<String> roles;
 }

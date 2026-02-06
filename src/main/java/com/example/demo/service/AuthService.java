@@ -1,9 +1,10 @@
 package com.example.demo.service;
 
+import com.example.demo.common.AppException;
 import com.example.demo.common.TokenExpiredException;
 import com.example.demo.entity.*;
 import com.example.demo.model.LoginResponse;
-import com.example.demo.model.Provider;
+import com.example.demo.model.enum_object.Provider;
 import com.example.demo.model.RefreshTokenRequest;
 import com.example.demo.repository.InvalidatedTokenRepository;
 import com.example.demo.repository.LogCRUDRepository;
@@ -17,6 +18,7 @@ import com.nimbusds.jwt.SignedJWT;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
@@ -36,7 +38,7 @@ public class AuthService {
 
     private final InvalidatedTokenRepository invalidatedTokenRepository;
 
-    private final String secret= "h2jXchw5FloESb63Kc+DFhTARvpWL4jUGCwfGWxuG5SIf/1y/LgJxHnMqaF6A/gk";
+    private final String secret = "h2jXchw5FloESb63Kc+DFhTARvpWL4jUGCwfGWxuG5SIf/1y/LgJxHnMqaF6A/gk";
 
     private final RefreshTokenRepository refreshTokenRepository;
 
@@ -51,7 +53,7 @@ public class AuthService {
 
         List<String> roles = user.getRoles()
                 .stream()
-                .map(RoleEntity::getName)   // lấy tên role
+                .map(RoleEntity::getName)
                 .toList();
         JWTClaimsSet jwtClaimsSet = new JWTClaimsSet.Builder()
                 .subject(user.getEmail())
@@ -63,7 +65,7 @@ public class AuthService {
                 .jwtID(UUID.randomUUID().toString())
                 .build();
 
-        JWSObject jwsObject = new JWSObject(jweHeader,jwtClaimsSet.toPayload());
+        JWSObject jwsObject = new JWSObject(jweHeader, jwtClaimsSet.toPayload());
 
         jwsObject.sign(new MACSigner(secret.getBytes()));
 
@@ -74,21 +76,28 @@ public class AuthService {
         String refreshToken = UUID.randomUUID().toString();
         Date now = new Date();
         Date expiresAt = new Date(now.getTime() + 24L * 60 * 60 * 1000);
-        RefreshTokenEntity refreshTokenEntity = new RefreshTokenEntity(refreshToken,user.getId(),expiresAt);
+        RefreshTokenEntity refreshTokenEntity = new RefreshTokenEntity(refreshToken, user.getId(), expiresAt);
         refreshTokenRepository.save(refreshTokenEntity);
         String token = createJwt(user);
         SignedJWT signedJWT = SignedJWT.parse(token);
-        UserEntity userEntity = userRepository.findByEmail(signedJWT.getJWTClaimsSet().getSubject()).orElseThrow(()->new RuntimeException("cannot find user"));
+
+        // Đã có sẵn theo mẫu
+        UserEntity userEntity = userRepository.findByEmail(signedJWT.getJWTClaimsSet().getSubject())
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "USER_NF_001", "Cannot find user"));
+
         Set<RoleEntity> roles = userEntity.getRoles();
         Set<String> roleSet = roles.stream().map(RoleEntity::getName).collect(Collectors.toSet());
-        return new LoginResponse( token,refreshToken,roleSet,userEntity.getEmail()) ;
+        return new LoginResponse(token, refreshToken, roleSet, userEntity.getEmail());
     }
 
     public LoginResponse login(String username, String password) throws JOSEException, ParseException {
         BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder(10);
-        UserEntity userEntity = userRepository.findByUsername(username).orElseThrow(()->new RuntimeException("nhap lai user name"));
+
+        UserEntity userEntity = userRepository.findByUsernameOrEmail(username,username)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "AUTH_NF_001", "User not found"));
+
         if (!passwordEncoder.matches(password, userEntity.getPassword())) {
-            throw new RuntimeException("nhap lai user password");
+            throw new AppException(HttpStatus.UNAUTHORIZED, "AUTH_INVALID_CREDENTIALS", "Invalid password");
         }
         return createRefreshToken(userEntity);
     }
@@ -103,6 +112,8 @@ public class AuthService {
         var verified = signedJWT.verify(verifier);
 
         if (!(verified && expiryTime.after(new Date()))) {
+            // Nếu bạn muốn giữ TokenExpiredException riêng thì giữ, hoặc đổi thành AppException như dưới:
+            // throw new AppException(HttpStatus.UNAUTHORIZED, "TOKEN_EXP_001", "Token expired or invalid");
             throw new TokenExpiredException("Token expired or invalid");
         }
         return signedJWT;
@@ -111,7 +122,7 @@ public class AuthService {
     public String logout(String token, RefreshTokenRequest request) throws ParseException, JOSEException {
         var signedJWT = filterToken(token);
         var claims = signedJWT.getJWTClaimsSet();
-        InvalidatedTokenEntity invalidatedTokenEntity = new InvalidatedTokenEntity(token,claims.getExpirationTime());
+        InvalidatedTokenEntity invalidatedTokenEntity = new InvalidatedTokenEntity(token, claims.getExpirationTime());
         refreshTokenRepository.deleteById(request.refreshToken());
         invalidatedTokenRepository.save(invalidatedTokenEntity);
         return "Logout successful";
@@ -125,23 +136,24 @@ public class AuthService {
         RefreshTokenEntity refreshTokenEntity = isRefreshTokenValid(refreshToken);
 
         UserEntity user = userRepository.findById(refreshTokenEntity.getUserId())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "USER_NF_002", "User not found for this token"));
 
         return createJwt(user);
     }
 
     public RefreshTokenEntity isRefreshTokenValid(String token) {
         RefreshTokenEntity refreshTokenEntity = refreshTokenRepository.findById(token)
-                .orElseThrow(() -> new RuntimeException("refresh token not found"));
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "REFRESH_TOKEN_NF", "Refresh token not found"));
 
         if (!userRepository.existsById(refreshTokenEntity.getUserId())) {
-            throw new RuntimeException("user of this token not found");
+            throw new AppException(HttpStatus.NOT_FOUND, "USER_NF_003", "User of this token not found");
         }
         if (refreshTokenEntity.getExpiresTime().before(new Date())) {
-            throw new RuntimeException("refresh token expired");
+            throw new AppException(HttpStatus.UNAUTHORIZED, "REFRESH_TOKEN_EXPIRED", "Refresh token expired");
         }
         return refreshTokenEntity;
     }
+
     @Transactional
     public String processOAuthPostLogin(OAuth2User oAuth2User) {
         try {
@@ -169,7 +181,7 @@ public class AuthService {
                     .collect(Collectors.joining(","));
 
             return String.format(
-                    "http://localhost:3000/oauth2/callback?token=%s&refreshToken=%s&roles=%s&email=%s",
+                    "http://localhost:3000/oauth2/redirect?token=%s&refreshToken=%s&roles=%s&email=%s",
                     token, refreshToken, roles, email
             );
 

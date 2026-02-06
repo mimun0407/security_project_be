@@ -1,6 +1,6 @@
 package com.example.demo.controller;
 
-import com.example.demo.model.CreatePostRequest;
+import com.example.demo.model.user.CreatePostRequest;
 import com.example.demo.model.PostResponse;
 import com.example.demo.service.PostService;
 import lombok.RequiredArgsConstructor;
@@ -30,15 +30,12 @@ public class PostController {
         return ResponseEntity.ok("Tạo bài viết và tải nhạc thành công!");
     }
 
-    // 2. API Lấy danh sách bài viết (Có phân trang)
-    // Ví dụ gọi: GET /api/posts?page=0&size=10&sort=createdAt,desc
     @GetMapping
     public ResponseEntity<Page<PostResponse>> getAllPosts(
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         return ResponseEntity.ok(postService.findAll(pageable));
     }
 
-    // 3. API Xem chi tiết bài viết
     @GetMapping("/{id}")
     public ResponseEntity<PostResponse> getPostById(@PathVariable String id) {
         return ResponseEntity.ok(postService.findById(id));

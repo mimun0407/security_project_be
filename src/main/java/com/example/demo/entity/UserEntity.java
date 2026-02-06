@@ -1,7 +1,7 @@
 package com.example.demo.entity;
 
 import com.example.demo.common.BaseEntity;
-import com.example.demo.model.Provider;
+import com.example.demo.model.enum_object.Provider;
 import jakarta.persistence.*;
 import lombok.*;
 import java.util.HashSet;
@@ -17,6 +17,7 @@ public class UserEntity extends BaseEntity {
     private String password;
     @Enumerated(EnumType.STRING)
     private Provider provider;
+    private Integer age;
     private String providerUserId;
     private String username;
     private String email;
